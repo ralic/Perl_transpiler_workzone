@@ -1,0 +1,8 @@
+git log --pretty=format:'%s' > diary.txt
+
+git commit -a -m ''
+
+use format: 
+date	start	stop	activity	comments
+29/09	16:00	17:30	coding		implemented for loop
+			debugging	found bug in ...

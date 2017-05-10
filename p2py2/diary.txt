@@ -1,0 +1,12 @@
+10/10   01:00   04:00   final submission   touching up on bugs found while producing the tests and demos, completed the tests and demos
+09/10   13:00   15:00   coding   		added functionality for initialising hashes and arrays, functions for arrays (pop,push, ...), concatenation, fixed up comments
+08/10   00:30   3:00    coding 		  added functionality for increments, reading from both standard input and command line arguments, else, elsif, fixed problem with print for multiple arguments
+07/10   16:00   17:00   coding   		can now have multiple files as arguments or no files (reads fro standard input), ALSO the filename has been changed from per2python to perl2python.pl (as the spec changed)
+06/10   18:00   23:30   coding subset 4   fixed indentation problem for nested loops of size 3, added functionality for line = <>, regex, more argv from subset4, problem with print statement in line_count
+05/10   21:10   21:50   debugging subset 3   indentation doesnt work for nested loops of size 3, extra line in five,py
+05/10   18:30   21:00   coding   		added functionality for imports, starting subset3 (stdin, chomp, last,argv), fixed bugs for if comparators & for print statements (multiple arguments)
+05/10   17:00   18:00   debugging  	 fixed indentation problem for subset2
+03/10   15:00   19:30   coding   		changed the structure of subroutines, problem with indentation for nested loops (i asked on the forum if we were supposed to account for nested loops)
+30/09   01:00   02:30   coding subset2   bug in iota.pl, print statement under if is not tranaslated
+30/09   22:00   00:30   finished subsets 1 and 0
+19/9    22:00   23:30   testing   		starting point, started playing with sample code that works for subset0

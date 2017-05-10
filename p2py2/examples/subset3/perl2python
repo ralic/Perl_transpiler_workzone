@@ -1,0 +1,300 @@
+#!/usr/bin/perl
+
+my @lines = ();
+my @importList = ();
+my $line;
+my $indentCount = 0;
+my $stopIndent = 0;
+my $tempIndent = 0;
+my $temp = 0;
+
+ 
+open F, ${ARGV[0]} or die;
+
+#initialising hash for if comparators - eg. if ($a eq 'b'), eq is the comparator
+%ifComp = 	("eq", "==",
+			"ne", "!=",
+			"gt", ">",
+			"ge", ">=",
+			"lt", "<",
+			"le", "<=",
+			);
+
+
+while ($line = <F>) {	
+	
+	push(@lines, convert($line));
+}
+
+if ($#importList != -1) {	#if there are elements in @importList
+	addImportsToLines();
+}
+
+print @lines;
+
+
+sub addImport {
+
+	my ($import) = @_;
+	if (! in ($import)) {
+		push(@importList, $import);
+	}
+	
+}
+
+sub addImportsToLines {
+
+	unshift(@lines, "\n");
+	$lines[0] = $lines[1];
+	$lines[1] = "";
+	$lines[1] = "import ";
+	
+	foreach $item (@importList) {
+		$lines[1] .= $item.", ";
+	}
+	$lines[1] =~ s/, $//;
+	$lines[1] .= "\n";
+
+}
+
+
+sub in {
+	my ($x) = @_;
+	my ($found);
+	foreach $elem (@importList) {
+		if ($x eq $elem) {
+			$found = 1;
+		}
+	}
+	return $found;
+}
+
+sub convert {
+	#converts one line of perl into python
+	
+	my ($line) = @_;
+
+	
+	#remove white space from start and end of line	
+	$line =~ s/^\s+//g;
+	$line =~ s/\s+$//g;
+
+
+	#first line
+	if ($line =~ /^#!\/usr\/bin\/perl -w/ && $. == 1) {
+		# translate #! line 	
+		$line = "#!/usr/bin/python2.7 -u\n";	
+		
+	}
+
+
+	#comment - leave unchanged
+				#trailing comments???
+	if ($line =~ /^\s*#[^!].*/) {
+		# Blank & comment lines can be passed unchanged		
+		#$line = $line
+		
+	} 
+
+	#blank lines with only spaces - remove spaces
+	if ($line =~ /^\s*$/) {
+		$line = "\n";
+		
+	}
+	
+	
+	
+
+	#print
+	if ($line =~ /^print.*/) {	
+		
+		#extract print arguments
+		my ($printArgs) = $line;
+		$printArgs =~ s/^print[ ]*//;
+		
+		my (@arguments) = ();
+		@arguments = split(', ',$printArgs);			
+
+		$line = "print ";
+		
+		my ($argCount) = -1;
+		foreach $arg (@arguments) {
+			$argCount = $argCount + 1;
+			
+			$arg =~ s/\$|\;|\\n//g;		#remove $,;,\n
+			
+			if ($arg =~ /^"[^ ]*"/) {	#if in quotes, there is no space - eg. NOT "abc def", eg. "abcdef"
+				$arg =~ s/"//g;		#remove quotes
+			}	
+			
+			if ($#arguments == $argCount) {	#if last argument	
+				$line = $line."$arg"."\n";		
+			} else {
+				$line = $line."${arg}, ";
+			}
+
+		}
+		$line =~ s/, $//;
+
+	}
+
+	
+	
+	#variable assignment -eg $a = ...
+	if ($line =~ /^\$/) { 		#if starts with a $ - eg. $fast = "7";
+	
+		$line =~ s/\$|;|\\n//g;	#remove $,;,\n
+		
+		#stdin
+		my ($varArg) = $line;
+		$varArg =~ s/[^ ]* = //;
+		if ($varArg =~ /<STDIN>/) {
+			addImport("sys");
+			$line =~ s/=.*//;
+			$line .= "= sys.stdin.readline()";
+		}
+		
+		$line = $line."\n";
+		
+	}
+
+
+
+	
+	#if
+	if ($line =~ /^if/) {
+		$ifArg = $line;
+		$ifArg =~ s/if |\(|\)| \{|\$//g;	#remove if ,(,), {,$
+		
+		my ($ifComparator);
+		my ($compareIf) = $ifArg;
+		$compareIf =~ s/[^ ]* //;
+		$compareIf =~ s/ [^ ]*$//;
+		
+		if (defined $ifComp{$compareIf}) {
+			$ifComparator = $ifComp{$compareIf};
+		}
+		$ifArg =~ s/$compareIf/$ifComparator/;
+		
+		$line = "if $ifArg:\n";
+		
+		$stopIndent = 1;	#beginning of a loop
+		$indentCount++;
+
+	}
+	
+	
+
+	#while
+	if ($line =~ /^while/) {
+		$whileArg = $line;
+		$whileArg =~ s/while |\(|\)| \{|\$//g;	#remove if ,(,), {,$
+		$line = "while $whileArg:\n";
+		$stopIndent = 1;	#beginning of a loop
+		$indentCount++;
+		
+	}
+
+	
+	
+	#end of loop (eg. if, while)
+	if ($line =~ /^}/) {
+		$line = "";
+		$indentCount--;
+		$stopIndent = 1;
+	}
+	
+	
+	#chomp
+	if ($line =~ /^chomp.*/) {
+		$line =~ s/\$|;|\\n//g;	#remove $,;,\n
+		my ($chompArg) = $line;
+		$chompArg =~ s/chomp[ ]*//;
+		$line = $chompArg." = ".$chompArg.".rstrip()";
+		$line .= "\n";
+	}
+	
+	#last
+	if ($line =~ /^last;/) {
+		$line = "break\n";
+	}
+	
+	
+	#join
+	if ($line =~ /.*join.*/) {
+		#$line =~ s/\\n//g;	#remove \n
+		my ($joinTemp) = $line;
+		$joinTemp =~ s/.*join\(//;
+		$joinTemp =~ s/\).*//;
+		
+		@joinArgs = split(/, /, $joinTemp);
+		my ($joinLineTemp) = $joinArgs[0].".join(".$joinArgs[1];
+		$joinLineTemp =~ s/\n//g;	#remove \n
+		$joinLineTemp .= ")\n";
+		#$line = $joinLineTemp;
+		
+		
+		my ($beforeJoin) = $line;
+		$beforeJoin =~ s/join.*//;
+		$beforeJoin =~ s/\n//g;	#remove \n
+		my ($afterJoin) = $line;
+		$afterJoin =~ s/.*\)//;
+		$afterJoin =~ s/\n//g;	#remove \n
+		$line = $beforeJoin.$joinLineTemp.$afterJoin;
+		
+	}
+
+	
+	#argv	
+	if ($line =~ /.*\@ARGV.*/) {
+		$line =~ s/\@ARGV/sys\.argv\[1\:\]/;
+		addImport("sys");
+	}
+	
+	#foreach
+	if ($line =~ /^foreach.*/) {
+	
+		$line =~ s/\$|;|\(|\)|\\n//g;	#remove $,;,\n,(,)
+		
+		my ($foreachArgs) = $line;
+		$foreachArgs =~ s/foreach //;
+		$foreachArgs =~ s/ [^ ]*$//;
+		
+		my (@foreachVars) = split(' ', $foreachArgs);
+		
+		$line = "for ".$foreachVars[0]." in ".$foreachVars[1].":\n";
+		
+	}
+	
+	
+	
+	
+	
+	#indenting - has to be last block of code for convert
+	if ($stopIndent) {
+	
+		$tempIndent = $indentCount - 1;	#hold indentCount in temp variable
+		$stopIndent = 1 - $stopIndent;	#reset stopIndent
+		
+		while ($tempIndent > 0) {
+			$line = "	".$line;
+			$tempIndent--;
+		}
+	} else {
+	
+		$temp = $indentCount;		#hold indentCount in temp variable due to while loop
+		while ($indentCount > 0) {
+			$line = "	".$line;
+			$indentCount --;
+		}
+		$indentCount = $temp;		
+	}
+	
+
+	
+	
+	
+	return $line;
+
+}
+
